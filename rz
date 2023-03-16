@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# Geschrabtet von: Tobias Klausmann
+#
+# Logischerweise braucht man SSH-Zugriff auf die HW-DB
+
+HWDB="hwdb.freenet-rz.de"
+
+function usage() {
+    n=$(basename $0)
+    echo "$n '[ip|int|intinv|inv|cluster|artikel|projekt|mac|vlan|switch|port|abbau]' '<query string>'"
+    echo
+    echo "Ex.:"
+    echo "$n 'ip 10.10.10.10'"
+    echo "$n 'int internebez'"
+    echo "$n 'inv inventar#'"
+    echo "$n 'k{urzliste} dus2-x-ad'"
+    echo "$n 'm{ac} 00:11:2F:D8:5E:53'"
+    echo "$n 'v{lan} 100/0'"
+    echo "$n 'sw{itch} dus2-x-ad [blade/port]'"
+    echo "$n 'pr{oj} projektname'"
+    echo "$n 'a{rtikel} Artikelname'"
+    echo "$n 'sn Seriennummer'"
+}
+
+if [ "$1" == "" ]; then
+    usage
+fi
+
+function search() {
+        case $1 in
+            ip)
+                echo "-3 $2" | ssh search@$HWDB muh
+            ;;
+            int)
+                echo "-b $2" | ssh search@$HWDB muh
+            ;;
+            intinv)
+                echo "-b $2" | ssh search@$HWDB muh | grep Invnr | awk '{print$3 }' | xargs
+            ;;
+            abbau)
+                echo "-b $2" | ssh search@$HWDB muh | grep -E '(Bezeichn|Invnr|Artikel|Projekt:|Einbauort|eth/|mk/|bond|fc/|oa/)' | grep -v -E '^Port:.*N/A\[N/A\]'
+            ;;
+            inv*)
+                echo "-i $2" | ssh search@$HWDB muh
+            ;;
+            m*)
+                echo "-m $2" | ssh search@$HWDB muh
+            ;;
+            v*)
+                echo "-v $2" | ssh search@$HWDB muh
+            ;;
+            sw*)
+                echo "-p $2 $3" | ssh search@$HWDB muh
+            ;;
+            pr*)
+                echo "-1 $2" | ssh search@$HWDB muh
+            ;;
+            a*)
+                echo "-a $2" | ssh search@$HWDB muh
+            ;;
+            c*)
+                echo "-c $2" | ssh search@$HWDB muh
+            ;;
+            sn)
+                echo "-n $2" | ssh search@$HWDB muh
+            ;;
+            k*)
+                    # Der grep -v entfernt die unbelegten Ports
+                echo "-s $2" | ssh search@$HWDB muh # | grep -v '<-> N/A N/A\[N/A\]'
+            ;;
+            pythonspecial)
+                # spezial eintrag fuer vms-not-in-vmfile.py
+                echo "-i $2" | ssh search@$HWDB muh | grep Bezeichnung | awk '{print$2}'
+            ;;
+        esac
+}
+
+for i in $(seq 2 ${#}) ; do
+    search $1 ${!i}
+done
